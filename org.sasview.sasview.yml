@@ -36,7 +36,7 @@ modules:
       - python --version
       - python -m pip install --isolated --ignore-installed --no-deps --no-index --find-links=. --prefix=${FLATPAK_DEST} -r requirements.txt
     sources:
-      # wheels/ directory generated ahead of time using flatpak-pip-generator
+      # wheels/ directory generated ahead of time
       - type: dir
         path: wheels
       # pinned requirements file from SasView release 6.1.1
@@ -53,8 +53,8 @@ modules:
     sources:
       - type: dir
         path: wheels
-      - type: file
-        path: sasview-6.1.1-py3-none-any.whl
+      # - type: file
+        # path: sasview-6.1.1-py3-none-any.whl
 
   - name: python-opengl
     buildsystem: simple
