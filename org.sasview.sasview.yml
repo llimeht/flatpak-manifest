@@ -1,59 +1,98 @@
-id: org.sasview.sasview
-runtime: org.kde.Sdk
-runtime-version: "5.15-23.08"
+app-id: org.sasview.sasview
+# runtime: org.freedesktop.Platform
+# runtime-version: "24.08"
+# sdk: org.freedesktop.Sdk
+runtime: org.kde.Platform
+runtime-version: '6.9'
 sdk: org.kde.Sdk
+base: io.qt.qtwebengine.BaseApp
+base-version: '6.9'
 command: sasview
+
 finish-args:
-  - "--socket=fallback-x11"
-  - "--share=ipc"
-  - "--socket=wayland"
-  - "--device=dri"
-  - "--filesystem=~/sasview.log"
-  - "--filesystem=~/.sasview"
-  - "--filesystem=~/.sasmodels"
+  - --share=ipc
+  - --socket=x11
+  - --socket=wayland
+  - --socket=fallback-x11
+  - --socket=pulseaudio
+  - --socket=system-bus
+  - --device=dri
+  - --filesystem=home
+  - --share=network
+  - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
+  - --env=QT_QPA_PLATFORM=wayland
+
+cleanup-commands:
+  - /app/cleanup-BaseApp.sh
+
 modules:
+  #- include: shared-modules/glu/glu-9.json
   - shared-modules/glu/glu-9.json
+
+  - name: python3-dependencies
+    buildsystem: simple
+    build-commands:
+      # install dependencies offline from bundled wheels
+      - python --version
+      - python -m pip install --isolated --ignore-installed --no-deps --no-index --find-links=. --prefix=${FLATPAK_DEST} -r requirements.txt
+    sources:
+      # wheels/ directory generated ahead of time using flatpak-pip-generator
+      - type: dir
+        path: wheels
+      # pinned requirements file from SasView release 6.1.1
+      - type: file
+        # url: https://raw.githubusercontent.com/SasView/sasview/release-6.1.1/build_tools/requirements-release-ubuntu-latest.txt
+        # sha256:  # fill in after download
+        # dest-filename: requirements.txt
+        path: requirements.txt
+
   - name: sasview
     buildsystem: simple
     build-commands:
-      - mkdir $FLATPAK_DEST/bin
-      - cp -r . $FLATPAK_DEST/bin/
+      - python -m pip install --isolated --ignore-installed --no-deps --no-index --find-links=. --prefix=${FLATPAK_DEST} sasview-*.whl
     sources:
-      - type: archive
-        url: https://github.com/SasView/sasview/releases/download/v6.0.0/SasView-6.0.0-Ubuntu-22.04.tar.gz
-        sha256: 585d45689c1e5e6ba6e7e972e3ab15f0b522b9bdf9f9b0b11c550b1064137ea9
+      - type: dir
+        path: wheels
+      - type: file
+        path: sasview-6.1.1-py3-none-any.whl
+
   - name: python-opengl
     buildsystem: simple
     build-commands:
-      - cp -r OpenGL $FLATPAK_DEST/bin/
+      - cp -r OpenGL ${FLATPAK_DEST}/bin/
     sources:
       - type: archive
         url:  https://files.pythonhosted.org/packages/72/b6/970868d44b619292f1f54501923c69c9bd0ab1d2d44cf02590eac2706f4f/PyOpenGL-3.1.7.tar.gz
         sha256: eef31a3888e6984fd4d8e6c9961b184c9813ca82604d37fe3da80eb000a76c86
-  - name: sasview-desktop
+
+  # - name: xcb-dependencies-for-qt-x11
+  #   buildsystem: simple
+  #   build-commands:
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxkbcommon-x11.so.0 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-icccm.so.4 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-image.so.0 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-keysyms.so.1 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-randr.so.0 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-render-util.so.0 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-xinerama.so.0 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-xfixes.so.0 ${FLATPAK_DEST}/lib/
+  #     - install -Dm644 /usr/lib/x86_64-linux-gnu/libxcb-cursor.so.0 ${FLATPAK_DEST}/lib/
+  #   sources:
+  #     - type: system
+
+  - name: sasview-desktop-resources
     buildsystem: simple
     build-commands:
-      - mkdir -p /app/share/applications/
-      - cp org.sasview.sasview.desktop /app/share/applications/
+      - install -Dm644 org.sasview.sasview.desktop ${FLATPAK_DEST}/share/applications/org.sasview.sasview.desktop
+      - install -Dm644 org.sasview.sasview.png ${FLATPAK_DEST}/share/icons/hicolor/512x512/apps/org.sasview.sasview.png
+      - install -Dm644 org.sasview.sasview.metainfo.xml ${FLATPAK_DEST}/share/metainfo/org.sasview.sasview.metainfo.xml
     sources:
       - type: file
-        url: https://raw.githubusercontent.com/SasView/sasview/2e519c48373a4ebe3266225c5fccb3870f6403b2/build_tools/application_metadata/org.sasview.sasview.desktop
-        sha256: 52102796f2010447b447cd37fe6246362cd91234f3c762c2b1c14771a451fa85
-  - name: sasview-logo
-    buildsystem: simple
-    build-commands:
-      - mkdir -p /app/share/icons/hicolor/512x512/apps/
-      - cp org.sasview.sasview.png /app/share/icons/hicolor/512x512/apps/org.sasview.sasview.png
-    sources:
+        url: https://raw.githubusercontent.com/SasView/sasview/refs/tags/v6.1.1/build_tools/application_metadata/org.sasview.sasview.desktop
+        sha256: 1af3ff2fba3b7349949412790c9b3dd1b4bb9976b50b594da02ed53679a576b4
       - type: file
-        url: https://raw.githubusercontent.com/SasView/sasview/2e519c48373a4ebe3266225c5fccb3870f6403b2/build_tools/application_metadata/org.sasview.sasview.png
+        url: https://raw.githubusercontent.com/SasView/sasview/refs/tags/v6.1.1/build_tools/application_metadata/org.sasview.sasview.png
         sha256: fa4e310c68c88ad7f6ebdd4cf4b4e91fac1b729c71624fe6c971970640e5766d
-  - name: sasview-metainfo
-    buildsystem: simple
-    build-commands:
-      - mkdir -p /app/share/metainfo/
-      - cp org.sasview.sasview.metainfo.xml /app/share/metainfo/
-    sources:
       - type: file
-        url: https://raw.githubusercontent.com/SasView/sasview/2e519c48373a4ebe3266225c5fccb3870f6403b2/build_tools/application_metadata/org.sasview.sasview.metainfo.xml
-        sha256: 47f09768043057bf39b43e7162a21577f2e5404f5b9549eceae31291725c6ef4
+        url: https://raw.githubusercontent.com/SasView/sasview/refs/tags/v6.1.1/build_tools/application_metadata/org.sasview.sasview.metainfo.xml
+        sha256: d3c6b944d7a70df5b9d9cad56865359f10606f24f3acff53a377661cdbb0550e
