@@ -1,0 +1,65 @@
+name: Build flatpak
+
+on:
+  workflow_call:
+  pull_request:
+  push:
+
+defaults:
+  run:
+    shell: bash
+
+env:
+  UV_SYSTEM_PYTHON: 1
+  REQ: requirements.txt
+
+jobs:
+
+  flatpak:
+    runs-on: ubuntu-latest
+
+    container:
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.9
+      options: --privileged
+
+    steps:
+      - name: Obtain flatpak manifest source from git
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Pre-seed wheelhouse
+        run: |
+          ./prep-wheelhouse
+
+      # build flatpak
+
+      - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
+        with:
+          bundle: org.sasview.sasview.flatpak
+          manifest-path: org.sasview.sasview.yml
+          cache-key: flatpak-builder-${{ github.sha }}
+          verbose: true
+
+      # upload wheelhouse and flatpak
+
+      # - name: Publish flatpak artifact
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: sasview-flatpak
+      #     path: |
+      #       sasview*.flatpak
+      #     if-no-files-found: error
+
+      - name: Publish wheelhouse artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: wheelhouse-sasview
+          path: |
+            wheelhouse-sasview*.tar.gz
+          if-no-files-found: error
