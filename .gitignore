@@ -1,0 +1,7 @@
+.flatpak-builder
+*.flatpak
+dist
+wheels
+requirements.txt
+wheelhouse-sasview*
+*whl
