@@ -21,6 +21,7 @@ finish-args:
   - --share=network
   - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
   - --env=QT_QPA_PLATFORM=wayland
+  - --env=SAS_COMPILER=tinycc
 
 cleanup-commands:
   - /app/cleanup-BaseApp.sh
