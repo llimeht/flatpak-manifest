@@ -10,42 +10,61 @@
 # Released under the same licence as SasView.
 
 # TODO:
-# - can this be run by the runtime Python itself?
-# - can the Python version and git refs be obtained from the workflow?
+# - can the git refs be obtained from the workflow?
+# - what would the URLs look like for unreleased artifacts?
+
 
 set -euo pipefail
 
-PYVER=3.12
+set -x
+
 VER=6.1.1
-WHEELHOUSE="wheels"
-WHEELHOUSE_ARCHIVE=wheelhouse-sasview-flatpak-py$PYVER-sasview$VER.tar.gz
 GITREF=refs/tags/v$VER
-
 REQ_URL="https://raw.githubusercontent.com/SasView/sasview/$GITREF/build_tools/requirements-release-ubuntu-latest.txt"
+# For future releases, the remote filename will hopefully change
+WHEEL_URL="https://github.com/SasView/sasview/releases/download/v$VER/Sasview-$VER.whl"
+
+download() {
+  local F=$1 U=$2
+  echo -n "... $F"
+  if [ ! -f $F ]; then
+    wget -q -O $F $U
+  else
+    echo "(cached)"
+  fi
+}
+
+# run a command in the flatpak environment to use its tools (such as the Python version)
+# quoting is, of course, painful - the command needs to be
+# a single argument to this function
+fp_run() {
+  flatpak run \
+    --share=network \
+    --filesystem="$PWD" \
+    --command=bash org.kde.Sdk//6.9 -c \
+    "$1"
+}
+
+WHEELHOUSE="wheels"
+PYVER=$(fp_run "python -c \"import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')\"")
+WHEELHOUSE_ARCHIVE=wheelhouse-sasview-flatpak-py$PYVER-sasview$VER.tar.gz
 REQ="requirements.txt"
-
-WHEEL_URL="https://github.com/SasView/sasview/releases/download/v6.1.1/Sasview-6.1.1.whl"
-WHEEL=sasview-$VER-py3-none-any.whl
-
-if [ $(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')") != $PYVER ]; then
-  echo "ERROR: python version must match inside the runtime"
-  exit 1
-fi
+SASVIEW_WHEEL=sasview-$VER-py3-none-any.whl
 
 
 mkdir -p "$WHEELHOUSE"
 
-echo -e "Fetching sasview data"
-wget -q -O $REQ $REQ_URL
-wget -q -O $WHEELHOUSE/$WHEEL $WHEEL_URL
 
+echo -e "Fetching sasview resources"
+download $REQ $REQ_URL
+download $WHEELHOUSE/$SASVIEW_WHEEL $WHEEL_URL
+# include additional things like sasmodels and sasdata here?
 
 echo -e "\n\n\nDownloading wheels"
-python -m pip download -r "$REQ" -d "$WHEELHOUSE"
+fp_run "python -m pip download -r $PWD/$REQ -d /$PWD/$WHEELHOUSE"
 
 echo -e "\n\n\nVerifying wheels"
-python -m pip install --no-index --find-links="$WHEELHOUSE" -r "$REQ" "$WHEELHOUSE/$WHEEL" --dry-run
+fp_run "python -m pip download -r $PWD/$REQ -d /$PWD/$WHEELHOUSE"
 
 echo -e"\n\nCreating archive $WHEELHOUSE_ARCHIVE"
-
 tar zcf "$WHEELHOUSE_ARCHIVE" "$WHEELHOUSE"
