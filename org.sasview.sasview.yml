@@ -24,7 +24,9 @@ finish-args:
   - --env=SAS_COMPILER=tinycc
 
 cleanup-commands:
-  - /app/cleanup-BaseApp.sh
+  #- /app/cleanup-BaseApp.sh
+  #- mkdir -p ${FLATPAK_DEST}/lib/x86_64-linux-gnu/GL
+
 
 modules:
   - name: pre-flight
