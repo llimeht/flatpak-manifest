@@ -27,6 +27,11 @@ cleanup-commands:
   - /app/cleanup-BaseApp.sh
 
 modules:
+  - name: pre-flight
+    buildsystem: simple
+    build-commands:
+      - python --version
+
   #- include: shared-modules/glu/glu-9.json
   - shared-modules/glu/glu-9.json
 
