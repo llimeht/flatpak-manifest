@@ -34,6 +34,11 @@ flatpak run org.sasview.sasview
 - Flatpak currently has full access to the home directory but there other other mechanisms that might be better, such as  Flatpak's [portal system](https://docs.flatpak.org/en/latest/portal-api-reference.html) or configured via permissions tools like [Flatseal](https://flathub.org/en/apps/com.github.tchx84.Flatseal), or desktop-specific tools such as [Flatpak KCM (kde-config-flatpak)](https://invent.kde.org/plasma/flatpak-kcm).
 
 # Debugging the runtime environment
+If building fails at some point, you can enter the build environment with
+```
+flatpak-builder --run build-dir org.sasview.sasview.yml bash
+```
+
 If you can get the flatpak to build then you can enter the runtime environment via sasview itself:
 
 ```
