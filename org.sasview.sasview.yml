@@ -21,7 +21,11 @@ finish-args:
   - --share=network
   - --env=QTWEBENGINEPROCESS_PATH=/app/bin/QtWebEngineProcess
   - --env=QT_QPA_PLATFORM=wayland
-  - --env=SAS_COMPILER=tinycc
+  # configure clang to build models for sasmodels
+  - --env=SAS_COMPILER=unix
+  - --env=CC=/app/bin/clang
+  - --env=CFLAGS=--sysroot=/app/sysroot
+  - --env=LDFLAGS=-fuse-ld=lld
 
 cleanup-commands:
   #- /app/cleanup-BaseApp.sh
@@ -72,6 +76,50 @@ modules:
       - type: archive
         url:  https://files.pythonhosted.org/packages/72/b6/970868d44b619292f1f54501923c69c9bd0ab1d2d44cf02590eac2706f4f/PyOpenGL-3.1.7.tar.gz
         sha256: eef31a3888e6984fd4d8e6c9961b184c9813ca82604d37fe3da80eb000a76c86
+
+  - name: llvm-prebuilt
+    buildsystem: simple
+    build-commands:
+      # llvm tools for: C, C++ and CL compilation
+      - mkdir -p ${FLATPAK_DEST}/bin
+      - cp -rv -t ${FLATPAK_DEST}/bin/
+          bin/{clang,clang-21,clang++,ld.lld,llc,lld,lli,llvm-as,llvm-config,llvm-link,opt}
+      # llvm libraries for the above
+      - mkdir -p ${FLATPAK_DEST}/lib
+      - cp -rv -t ${FLATPAK_DEST}/lib/
+          $(bin/llvm-config --libfiles --link-static)
+          lib/{libclang*.a,clang}
+      # llvm includes for clang and clang++
+      - mkdir -p ${FLATPAK_DEST}/lib/clang/21/include/
+      - cp -rv -t ${FLATPAK_DEST}/lib/clang/21/
+          lib/clang/21/include
+      - mkdir -p ${FLATPAK_DEST}/include
+      - cp -rv -t ${FLATPAK_DEST}/include/
+          include/{clang,c++,llvm,llvm-c,x86_64-unknown-linux-gnu}
+      # harvest additional includes necessary for sasmodels
+      # this include system headers from libc
+      - mkdir -p ${FLATPAK_DEST}/sysroot/usr/lib/
+      - cd ${FLATPAK_DEST}/sysroot; ln -s -t . usr/lib; ln -s lib lib64
+      - for inc in $(ls -1 2>&- $(bin/clang -O2 -M ${FLATPAK_DEST}/lib/python3*/site-packages/sasmodels/kernel_header.c)); do
+          dest=${FLATPAK_DEST}/sysroot/$(dirname $inc);
+          mkdir -p $dest;
+          cp -v -t $dest $inc;
+        done
+      # harvest resources from system libc needed by the linker
+      - for lib in
+          /usr/lib/x86_64-linux-gnu/{crt*.o,libc_nonshared.a,libm.so*,libmvec.so*}
+          /usr/lib/gcc/x86_64-unknown-linux-gnu/*/{crt*.o,libgcc*.a}
+          /lib/x86_64-linux-gnu/{libc.so*,libgcc*};
+          do
+          dest=${FLATPAK_DEST}/sysroot/$(dirname $lib);
+          mkdir -p $dest;
+          cp -v -t $dest $lib;
+        done
+      - ln -s -t ${FLATPAK_DEST}/sysroot/lib64 /lib64/ld-linux-x86-64.so.2
+    sources:
+    - type: archive
+      url: https://github.com/llvm/llvm-project/releases/download/llvmorg-21.1.4/LLVM-21.1.4-Linux-X64.tar.xz
+      sha256: 53c8d9a173c39c952ae367974b0b9c1dcfddeb81341c3d0553748e8407abe9f8
 
   # - name: xcb-dependencies-for-qt-x11
   #   buildsystem: simple
